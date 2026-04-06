@@ -227,6 +227,14 @@ class GridBrain {
         }
         return path;
     }
+
+    getGridData() {
+        return {
+            grid: this.grid,
+            width: this.width,
+            depth: this.depth
+        };
+    }
 }
 
 export async function initBrain(bounds, preTrainedData = null) {
@@ -234,6 +242,10 @@ export async function initBrain(bounds, preTrainedData = null) {
     if (preTrainedData) {
         await brain.importState(preTrainedData);
     }
+    return brain;
+}
+
+export function getBrain() {
     return brain;
 }
 

@@ -1,6 +1,6 @@
 import * as BABYLON from 'babylonjs';
 import 'babylonjs-loaders';
-import { navigateTo, mapEnvironment, initBrain, saveBrainState, unloadBrain, stopMapping, isPointReachable } from './brain.js';
+import { navigateTo, mapEnvironment, initBrain, saveBrainState, unloadBrain, stopMapping, isPointReachable, getBrain } from './brain.js';
 
 // Define the environment dimensions
 const ROOM_WIDTH = 12;
@@ -240,6 +240,68 @@ const createScene = (canvas) => {
             if (mapPoints.length > 500) mapPoints.shift().dispose();
         }
     });
+
+    // Brain Map Visualizer Logic
+    const visualizerCanvas = document.getElementById("brain-map-canvas");
+    const visualizerCtx = visualizerCanvas.getContext("2d");
+    const cellsLearnedDisplay = document.getElementById("cells-learned");
+    const visualizerDot = document.querySelector("#brain-visualizer .status-dot");
+
+    let lastVisualizerUpdate = 0;
+    const updateBrainVisualizer = () => {
+        const now = Date.now();
+        if (now - lastVisualizerUpdate < 200) return; // Limit to 5 FPS
+        lastVisualizerUpdate = now;
+
+        const brain = getBrain();
+        if (!brain) return;
+
+        const gridData = brain.getGridData();
+        const { grid, width, depth } = gridData;
+
+        // Set internal resolution of canvas to match grid
+        if (visualizerCanvas.width !== width) visualizerCanvas.width = width;
+        if (visualizerCanvas.height !== depth) visualizerCanvas.height = depth;
+
+        const imageData = visualizerCtx.createImageData(width, depth);
+        let learnedCount = 0;
+
+        for (let i = 0; i < grid.length; i++) {
+            const val = grid[i];
+            const px = i * 4;
+
+            if (val === 1) { // Traversable
+                imageData.data[px] = 0;      // R
+                imageData.data[px + 1] = 243;  // G
+                imageData.data[px + 2] = 255;  // B
+                imageData.data[px + 3] = 180;  // A
+                learnedCount++;
+            } else if (val === -1) { // Obstacle
+                imageData.data[px] = 255;    // R
+                imageData.data[px + 1] = 77;   // G
+                imageData.data[px + 2] = 77;   // B
+                imageData.data[px + 3] = 255;  // A
+                learnedCount++;
+            } else { // Unvisited
+                imageData.data[px] = 0;
+                imageData.data[px + 1] = 0;
+                imageData.data[px + 2] = 0;
+                imageData.data[px + 3] = 40;
+            }
+        }
+
+        visualizerCtx.putImageData(imageData, 0, 0);
+        cellsLearnedDisplay.innerText = learnedCount;
+
+        // Flash dot if mapping is active
+        if (brainMode === 'mapping') {
+            visualizerDot.style.opacity = (Math.sin(now * 0.01) + 1) / 2;
+        } else {
+            visualizerDot.style.opacity = 1;
+        }
+    };
+
+    scene.onBeforeRenderObservable.add(updateBrainVisualizer);
 
     document.getElementById("btn-auto-nav").addEventListener("click", () => {
         brainMode = 'auto-nav';
