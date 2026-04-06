@@ -228,3 +228,58 @@ header p {
 #ui-container > div:nth-child(2) { animation-delay: 0.1s; }
 #ui-container > div:nth-child(3) { animation-delay: 0.2s; }
 #ui-container > div:nth-child(4) { animation-delay: 0.3s; }
+#ui-container > div:nth-child(5) { animation-delay: 0.4s; }
+
+#brain-controls {
+  backdrop-filter: blur(12px);
+  background: var(--panel-bg);
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  pointer-events: auto;
+}
+
+#brain-controls h3 {
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.button-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+button {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: var(--text-main);
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: var(--font-family);
+  text-align: left;
+}
+
+button:hover {
+  background: rgba(0, 243, 255, 0.1);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 10px var(--border-glow);
+  transform: translateX(4px);
+}
+
+#brain-indicator.idle { color: #facc15; }
+#brain-indicator.active { color: #00ff88; }
+#brain-indicator.thinking { 
+  color: #7000ff; 
+  animation: pulseBrain 1s infinite alternate;
+}
+
+@keyframes pulseBrain {
+  from { opacity: 0.6; text-shadow: 0 0 0px var(--secondary-color); }
+  to { opacity: 1; text-shadow: 0 0 10px var(--secondary-color); }
+}
