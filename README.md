@@ -2,6 +2,8 @@
 
 A 3D virtual robot simulator built with **BabylonJS** and **TensorFlow.js**. This project demonstrates a robot navigating a 3D home environment, learning from its surroundings, and planning paths using AI.
 
+In this branch you can add your own 3d model of the environment. You can find the 3d model in the `3d_model_files` folder. You can also change the 3d model by changing the `modelPath` variable in the `main.js` file. Does not need to create the environment by adding BabylonJS meshes.
+
 ![Virtual Robot Simulator Screenshot in 3D Models](files/training_3d_model.png)
 
 
