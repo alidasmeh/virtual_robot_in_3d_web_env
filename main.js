@@ -21,6 +21,8 @@ const createScene = (canvas) => {
             if (response.ok) {
                 const preTrainedData = await response.json();
                 await initBrain(bounds, preTrainedData);
+                const brain = getBrain();
+                showSampledPoints(scene, brain);
                 document.getElementById("brain-indicator").innerText = "Pre-trained Brain Loaded";
                 document.getElementById("brain-indicator").className = "value active";
             } else {
@@ -220,6 +222,55 @@ const createScene = (canvas) => {
         tipMat.emissiveColor.g = 0.5 + Math.sin(faceTimer * 0.1) * 0.5;
         tipMat.emissiveColor.b = 0.5 + Math.sin(faceTimer * 0.1) * 0.5;
     });
+
+    // 3D Map Visualization (Sampled Points)
+    let sampledPointsContainer = null;
+    const clearSampledPoints = () => {
+        if (sampledPointsContainer) {
+            sampledPointsContainer.dispose();
+            sampledPointsContainer = null;
+        }
+    };
+
+    const showSampledPoints = (scene, brain) => {
+        clearSampledPoints();
+        if (!brain) return;
+
+        sampledPointsContainer = new BABYLON.TransformNode("sampledPointsContainer", scene);
+        const gridData = brain.getGridData();
+        const { grid } = gridData;
+
+        // Optimized material for points
+        const pointMat = new BABYLON.StandardMaterial("sampledPointMat", scene);
+        pointMat.emissiveColor = new BABYLON.Color3(0, 1, 0.2);
+        pointMat.diffuseColor = new BABYLON.Color3(0, 0.8, 0);
+        pointMat.alpha = 0.6;
+
+        const buttonMesh = BABYLON.MeshBuilder.CreateCylinder("sampledButton", {
+            diameter: 0.3,
+            height: 0.05
+        }, scene);
+        buttonMesh.material = pointMat;
+        buttonMesh.parent = sampledPointsContainer;
+
+        const matricesData = new Float32Array(grid.filter(val => val === 1).length * 16);
+        let count = 0;
+
+        for (let i = 0; i < grid.length; i++) {
+            if (grid[i] === 1) { // Only show traversable points
+                const pos = brain.getCoords(i);
+                const matrix = BABYLON.Matrix.Translation(pos.x, 0.05, pos.z);
+                matrix.copyToArray(matricesData, count * 16);
+                count++;
+            }
+        }
+
+        if (count > 0) {
+            buttonMesh.thinInstanceSetBuffer("matrix", matricesData, 16);
+        } else {
+            buttonMesh.dispose();
+        }
+    };
 
     // UI
     const posDisplay = document.getElementById("robot-pos");
@@ -428,6 +479,7 @@ const createScene = (canvas) => {
     unloadBtn.addEventListener("click", () => {
         if (unloadBtn.innerText === "Unload Brain") {
             unloadBrain();
+            clearSampledPoints();
             brainIndicator.innerText = "Brain Unloaded";
             brainIndicator.className = "value idle";
             unloadBtn.innerText = "Load Brain";
@@ -471,6 +523,8 @@ const createScene = (canvas) => {
                         const response = await fetch(`./trained_models/${modelName}`);
                         const data = await response.json();
                         await initBrain(bounds, data);
+                        const brain = getBrain();
+                        showSampledPoints(scene, brain);
                         brainIndicator.innerText = "Brain Loaded";
                         brainIndicator.className = "value active";
                         unloadBtn.innerText = "Unload Brain";
