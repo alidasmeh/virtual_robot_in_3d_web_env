@@ -7,8 +7,8 @@ A 3D virtual robot simulator built with **BabylonJS** and **TensorFlow.js**. Thi
 
 ## 🌿 Branches
 
-- **main**: Environment with native mesh elements (boxes, spheres, etc.)
-- **3d_model_env**: Environment with 3D model (.glb file)
+- [**main**](https://github.com/alidasmeh/virtual_robot_in_3d_web_env): Environment with native mesh elements (boxes, spheres, etc.)
+- [**3d_model_env**](https://github.com/alidasmeh/virtual_robot_in_3d_web_env/tree/3d_model_env): Environment with 3D model (.glb file)
 
 
 ## ✨ Features
