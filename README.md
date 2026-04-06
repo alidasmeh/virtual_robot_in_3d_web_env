@@ -4,6 +4,13 @@ A 3D virtual robot simulator built with **BabylonJS** and **TensorFlow.js**. Thi
 
 ![Virtual Robot Simulator Screenshot](files/screenshot.png)
 
+
+## 🌿 Branches
+
+- **main**: Environment with native mesh elements (boxes, spheres, etc.)
+- **3d_model_env**: Environment with 3D model (.glb file)
+
+
 ## ✨ Features
 
 - **3D Environment**: A complete 3D home scene with physics, lighting, and materials.
