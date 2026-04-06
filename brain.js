@@ -2,6 +2,7 @@ import * as tf from '@tensorflow/tfjs';
 import * as BABYLON from 'babylonjs';
 
 let brain;
+let mappingActive = false;
 
 /**
  * GridBrain handles the mapping and pathfinding logic.
@@ -242,10 +243,20 @@ export async function saveBrainState() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", "nslam_map.json");
+    downloadAnchorNode.setAttribute("download", "nslam_map_learned.json");
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
+}
+
+export function unloadBrain() {
+    if (brain) {
+        if (brain.model) {
+            brain.model.dispose();
+        }
+        brain = null;
+        console.log("Brain model unloaded.");
+    }
 }
 
 /**
@@ -291,6 +302,7 @@ export function navigateTo(robot, targetPos, speed = 0.1) {
  */
 export async function mapEnvironment(robot, scene, bounds) {
     if (!brain) await initBrain(bounds);
+    mappingActive = true;
     
     console.log("Brain is scanning environment...");
     
@@ -312,8 +324,9 @@ export async function mapEnvironment(robot, scene, bounds) {
         let currentWaypointIdx = 0;
         
         const scanLoop = () => {
-            if (currentWaypointIdx >= waypoints.length) {
-                console.log("Mapping complete.");
+            if (currentWaypointIdx >= waypoints.length || !mappingActive) {
+                console.log(mappingActive ? "Mapping complete." : "Mapping stopped by user.");
+                mappingActive = false;
                 resolve(true);
                 return;
             }
@@ -351,4 +364,8 @@ export async function mapEnvironment(robot, scene, bounds) {
 
         scanLoop();
     });
+}
+
+export function stopMapping() {
+    mappingActive = false;
 }

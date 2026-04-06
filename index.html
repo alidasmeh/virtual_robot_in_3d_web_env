@@ -1,14 +1,20 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>3D Robot Mini-Sim | BabylonJS</title>
-    <meta name="description" content="A 3D virtual robot simulator in a home environment built with BabylonJS." />
+    <meta
+      name="description"
+      content="A 3D virtual robot simulator in a home environment built with BabylonJS."
+    />
     <link rel="stylesheet" href="./style.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <div id="app">
@@ -16,16 +22,6 @@
         <header>
           <h1>Robot <span>Terminal</span></h1>
         </header>
-
-        <!-- <div id="controls-hint">
-          <h3>Navigation</h3>
-          <div class="key-grid">
-            <div class="key-item"><span class="key">▲</span> Forward</div>
-            <div class="key-item"><span class="key">▼</span> Backward</div>
-            <div class="key-item"><span class="key">◄</span> Left</div>
-            <div class="key-item"><span class="key">►</span> Right</div>
-          </div>
-        </div> -->
 
         <div id="status-panel">
           <div class="status-item">
@@ -46,7 +42,11 @@
           <div class="button-group">
             <button id="btn-auto-nav">Navigate to Room 2</button>
             <button id="btn-build-graph">Explore & Map (N-SLAM)</button>
-            <button id="btn-save-map" class="secondary">Save Current Map</button>
+            <button id="btn-stop-learning" class="warning hidden">Stop & Save</button>
+            <button id="btn-save-map" class="secondary">
+              Save Current Learned Map
+            </button>
+            <button id="btn-unload-brain" class="danger">Unload Brain</button>
           </div>
         </div>
 
@@ -68,6 +68,20 @@
           </div>
         </div>
       </div>
+
+      <div id="model-selection-modal" class="modal-overlay">
+        <div class="modal-content">
+          <header>
+            <h2>Select <span>Brain Model</span></h2>
+            <button id="close-modal" class="close-btn">&times;</button>
+          </header>
+          <div id="model-list" class="model-list">
+            <!-- List will be populated dynamically -->
+            <p class="empty-msg">No models found in folder "trained_models".</p>
+          </div>
+        </div>
+      </div>
+
       <canvas id="renderCanvas"></canvas>
     </div>
     <script type="module" src="./main.js"></script>

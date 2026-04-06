@@ -1,6 +1,6 @@
 import * as BABYLON from 'babylonjs';
 import 'babylonjs-loaders';
-import { navigateTo, mapEnvironment, initBrain, saveBrainState } from './brain.js';
+import { navigateTo, mapEnvironment, initBrain, saveBrainState, unloadBrain, stopMapping } from './brain.js';
 
 // Define the environment dimensions
 const ROOM_WIDTH = 12;
@@ -17,7 +17,7 @@ const createScene = (canvas) => {
     // Attempt to load pre-trained map
     const loadBrain = async () => {
         try {
-            const response = await fetch('./nslam_map.json');
+            const response = await fetch('./nslam_map_learned.json');
             if (response.ok) {
                 const preTrainedData = await response.json();
                 await initBrain(bounds, preTrainedData);
@@ -125,6 +125,7 @@ const createScene = (canvas) => {
     // UI
     const posDisplay = document.getElementById("robot-pos");
     const brainIndicator = document.getElementById("brain-indicator");
+    const stopBtn = document.getElementById("btn-stop-learning");
     let brainMode = 'manual';
     let currentTarget = null;
 
@@ -153,17 +154,103 @@ const createScene = (canvas) => {
         brainMode = 'mapping';
         brainIndicator.innerText = "Mapping Room...";
         brainIndicator.className = "value thinking";
+        stopBtn.classList.remove("hidden");
         
         await mapEnvironment(robot, scene, bounds);
         
-        brainMode = 'manual';
-        brainIndicator.innerText = "Brain Ready";
-        brainIndicator.className = "value active";
+        // Only reset indicator here if we finished naturally (mappingActive is handled inside brain.js)
+        if (brainMode === 'mapping') {
+            brainMode = 'manual';
+            brainIndicator.innerText = "Brain Ready";
+            brainIndicator.className = "value active";
+            stopBtn.classList.add("hidden");
+        }
     });
 
     document.getElementById("btn-save-map").addEventListener("click", () => {
         saveBrainState();
     });
+
+    stopBtn.addEventListener("click", async () => {
+        stopMapping();
+        brainMode = 'manual';
+        stopBtn.classList.add("hidden");
+        // Give the loop a short moment to resolve if it's currently running
+        setTimeout(() => {
+            saveBrainState();
+            brainIndicator.innerText = "Learning Stopped & Saved";
+            brainIndicator.className = "value active";
+        }, 100);
+    });
+
+    const unloadBtn = document.getElementById("btn-unload-brain");
+    const modal = document.getElementById("model-selection-modal");
+    const closeModalBtn = document.getElementById("close-modal");
+    const modelList = document.getElementById("model-list");
+
+    unloadBtn.addEventListener("click", () => {
+        if (unloadBtn.innerText === "Unload Brain") {
+            unloadBrain();
+            brainIndicator.innerText = "Brain Unloaded";
+            brainIndicator.className = "value idle";
+            unloadBtn.innerText = "Load Brain";
+            unloadBtn.className = "secondary";
+        } else {
+            // Open Modal
+            modal.classList.add("open");
+            populateModelList();
+        }
+    });
+
+    closeModalBtn.addEventListener("click", () => {
+        modal.classList.remove("open");
+    });
+
+    async function populateModelList() {
+        modelList.innerHTML = '<p class="empty-msg">Scanning for models...</p>';
+        
+        try {
+            const response = await fetch('/api/models');
+            const models = await response.json();
+            
+            modelList.innerHTML = "";
+            
+            if (models.length === 0) {
+                modelList.innerHTML = '<p class="empty-msg">No models found in folder "trained_models".</p>';
+                return;
+            }
+
+            models.forEach(modelName => {
+                const item = document.createElement("div");
+                item.className = "model-item";
+                item.innerHTML = `
+                    <div class="icon">🧠</div>
+                    <div class="name">${modelName}</div>
+                `;
+                item.onclick = async () => {
+                    modal.classList.remove("open");
+                    brainIndicator.innerText = `Loading ${modelName}...`;
+                    try {
+                        const response = await fetch(`./trained_models/${modelName}`);
+                        const data = await response.json();
+                        await initBrain(bounds, data);
+                        brainIndicator.innerText = "Brain Loaded";
+                        brainIndicator.className = "value active";
+                        unloadBtn.innerText = "Unload Brain";
+                        unloadBtn.className = "danger";
+                    } catch (e) {
+                        console.error("Failed to load model", e);
+                        brainIndicator.innerText = "Load Failed";
+                        brainIndicator.className = "value idle";
+                    }
+                };
+                modelList.appendChild(item);
+            });
+        } catch (err) {
+            console.error("Failed to fetch model list", err);
+            modelList.innerHTML = '<p class="empty-msg">Error listing models.</p>';
+        }
+    }
 
     const inputMap = {};
     window.addEventListener("keydown", (e) => inputMap[e.key] = true);

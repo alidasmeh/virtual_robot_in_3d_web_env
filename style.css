@@ -15,6 +15,10 @@
   box-sizing: border-box;
 }
 
+.hidden {
+  display: none !important;
+}
+
 body {
   width: 100vw;
   height: 100vh;
@@ -284,11 +288,139 @@ button.secondary:hover {
   box-shadow: 0 0 10px rgba(112, 0, 255, 0.3);
 }
 
+button.danger {
+  border-color: #ff4d4d;
+  color: #ff9999;
+}
+
+button.danger:hover {
+  background: rgba(255, 77, 77, 0.1);
+  border-color: #ff4d4d;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(255, 77, 77, 0.3);
+}
+
+button.warning {
+  border-color: #ffcc00;
+  color: #ffeb99;
+}
+
+button.warning:hover {
+  background: rgba(255, 204, 0, 0.1);
+  border-color: #ffcc00;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+}
+
 #brain-indicator.idle { color: #facc15; }
 #brain-indicator.active { color: #00ff88; }
 #brain-indicator.thinking { 
   color: #7000ff; 
   animation: pulseBrain 1s infinite alternate;
+}
+
+/* Modal Styling */
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.modal-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-content {
+  background: var(--panel-bg);
+  border: 1px solid var(--primary-color);
+  border-radius: 16px;
+  width: 400px;
+  max-width: 90%;
+  padding: 2rem;
+  box-shadow: 0 0 40px var(--border-glow);
+  transform: translateY(20px);
+  transition: transform 0.3s ease;
+}
+
+.modal-overlay.open .modal-content {
+  transform: translateY(0);
+}
+
+.modal-content header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.modal-content h2 {
+  font-size: 1.25rem;
+  text-transform: uppercase;
+}
+
+.modal-content h2 span {
+  color: var(--primary-color);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.model-item {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.2s ease;
+}
+
+.model-item:hover {
+  background: rgba(0, 243, 255, 0.1);
+  border-color: var(--primary-color);
+}
+
+.model-item .icon {
+  font-size: 1.2rem;
+  color: var(--primary-color);
+}
+
+.model-item .name {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.empty-msg {
+  color: var(--text-muted);
+  text-align: center;
+  font-style: italic;
+  font-size: 0.9rem;
 }
 
 @keyframes pulseBrain {
