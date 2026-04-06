@@ -112,7 +112,8 @@ const createScene = (canvas) => {
 
     // Simple Robot
     const robot = BABYLON.MeshBuilder.CreateBox("robot", { size: 0.6 }, scene);
-    robot.position = new BABYLON.Vector3(0, 0.3, 3);
+    robot.position = new BABYLON.Vector3(ROOM_WIDTH / 2 - 0.3, 0.3, 0);
+    robot.rotation.y = -Math.PI / 2; // Face towards the center of the room
     const robotMat = new BABYLON.StandardMaterial("robotMat", scene);
     robotMat.diffuseColor = new BABYLON.Color3(0, 243 / 255, 1); // Neon blue
     robotMat.emissiveColor = new BABYLON.Color3(0, 0.2, 0.3);
@@ -146,6 +147,7 @@ const createScene = (canvas) => {
     const robotRotationSpeed = 0.05;
 
     const posDisplay = document.getElementById("robot-pos");
+    posDisplay.innerText = `${robot.position.x.toFixed(1)}, ${robot.position.y.toFixed(1)}, ${robot.position.z.toFixed(1)}`;
 
     scene.onBeforeRenderObservable.add(() => {
         let moved = false;
