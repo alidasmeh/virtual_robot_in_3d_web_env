@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Robot Mini-Sim | BabylonJS</title>
+    <meta name="description" content="A 3D virtual robot simulator in a home environment built with BabylonJS." />
+    <link rel="stylesheet" href="./style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="app">
+      <div id="ui-container">
+        <header>
+          <h1>Robot <span>Terminal</span></h1>
+          <p>Explore the 3D space with your robotic companion.</p>
+        </header>
+
+        <div id="controls-hint">
+          <h3>Navigation</h3>
+          <div class="key-grid">
+            <div class="key-item"><span class="key">▲</span> Forward</div>
+            <div class="key-item"><span class="key">▼</span> Backward</div>
+            <div class="key-item"><span class="key">◄</span> Left</div>
+            <div class="key-item"><span class="key">►</span> Right</div>
+          </div>
+        </div>
+
+        <div id="status-panel">
+          <div class="status-item">
+            <span class="label">Status:</span>
+            <span id="robot-status" class="value online">Online</span>
+          </div>
+          <div class="status-item">
+            <span class="label">Position:</span>
+            <span id="robot-pos" class="value">0, 0, 0</span>
+          </div>
+        </div>
+
+        <div id="viewport-controls">
+          <h3>Camera View</h3>
+          <div class="input-grid">
+            <div class="input-item">
+              <label for="cam-dist">Dist:</label>
+              <input type="number" id="cam-dist" value="16" step="0.5" />
+            </div>
+            <div class="input-item">
+              <label for="cam-alpha">Horiz:</label>
+              <input type="number" id="cam-alpha" value="-1.57" step="0.1" />
+            </div>
+            <div class="input-item">
+              <label for="cam-beta">Vert:</label>
+              <input type="number" id="cam-beta" value="1.0" step="0.1" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <canvas id="renderCanvas"></canvas>
+    </div>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
