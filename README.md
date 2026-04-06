@@ -2,6 +2,8 @@
 
 A 3D virtual robot simulator built with **BabylonJS** and **TensorFlow.js**. This project demonstrates a robot navigating a 3D home environment, learning from its surroundings, and planning paths using AI.
 
+![Virtual Robot Simulator Screenshot](files/screenshot.png)
+
 ## ✨ Features
 
 - **3D Environment**: A complete 3D home scene with physics, lighting, and materials.
@@ -75,6 +77,8 @@ Use the keyboard arrows to control the robot:
 - **`scene.js`**: 3D environment creation and asset management.
 
 ### AI & Machine Learning
+
+![Robot Training Progress](files/training.gif)
 
 The `brain.js` module uses:
 
