@@ -349,16 +349,6 @@ const createScene = (canvas) => {
 
     scene.onBeforeRenderObservable.add(updateBrainVisualizer);
 
-    document.getElementById("btn-auto-nav").addEventListener("click", () => {
-        brainMode = 'auto-nav';
-        // Note: ROOM2_X is replaced with a fixed coordinate (17) suitable for the old layout.
-        // You may need to update this to a safe coordinate in your 3D model.
-        currentTarget = new BABYLON.Vector3(17 * SCALE, 0.4, 0); 
-        robot.currentPath = null; // Reset path to force recalculation
-        brainIndicator.innerText = "Computing Path...";
-        brainIndicator.className = "value thinking";
-    });
-
     document.getElementById("btn-build-graph").addEventListener("click", async () => {
         brainMode = 'mapping';
         brainIndicator.innerText = "Mapping Room...";
