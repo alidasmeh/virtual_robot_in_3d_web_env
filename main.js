@@ -1,6 +1,6 @@
 import * as BABYLON from 'babylonjs';
 import 'babylonjs-loaders';
-import { navigateTo, mapEnvironment, initBrain, saveBrainState, unloadBrain, stopMapping } from './brain.js';
+import { navigateTo, mapEnvironment, initBrain, saveBrainState, unloadBrain, stopMapping, isPointReachable } from './brain.js';
 
 // Define the environment dimensions
 const ROOM_WIDTH = 12;
@@ -280,6 +280,67 @@ const createScene = (canvas) => {
             brainIndicator.className = "value active";
         }, 100);
     });
+
+    // Destination Picking Logic
+    const setDestBtn = document.getElementById("btn-set-destination");
+    const brainHeader = document.querySelector("#brain-controls h3");
+    let pickingMode = false;
+
+    if (brainHeader) {
+        brainHeader.style.cursor = "pointer";
+        brainHeader.addEventListener("click", () => setDestBtn.click());
+        brainHeader.title = "Click to set custom destination";
+    }
+
+    setDestBtn.addEventListener("click", () => {
+        pickingMode = !pickingMode;
+        if (pickingMode) {
+            setDestBtn.innerText = "Click on Map to Set...";
+            setDestBtn.className = "warning";
+            brainIndicator.innerText = "Waiting for Destination...";
+            canvas.style.cursor = "crosshair";
+        } else {
+            setDestBtn.innerText = "Set Custom Destination";
+            setDestBtn.className = "secondary";
+            canvas.style.cursor = "default";
+        }
+    });
+
+    scene.onPointerDown = (evt, pickResult) => {
+        if (pickingMode && pickResult.hit && (pickResult.pickedMesh.name.includes("floor") || pickResult.pickedMesh.name.includes("ground"))) {
+            const pickedPoint = pickResult.pickedPoint;
+            
+            // Check if there is a brain and if the point is reachable
+            // navigateTo handles the pathfinding inside itself but we need an explicit check for the alert
+            const tempBrain = navigateTo.brain || null; // Accessing the hidden brain or findPath from library
+            
+            // Actually, we can just attempt to start navigation and check if it fails the pathfinding step early
+            // But the user wants an alert if "learned cannot go there".
+            // Since navigateTo currently just returns false if no path, I'll need to expose findPath or check inside.
+            
+            // Let's modify brain.js to export findPath if we need it, or just use brain.grid/findPath if accessible.
+            // Wait, brain.js exports initBrain but brain itself is local to brain.js module.
+            // Oh, wait, the brain instance is local to brain.js.
+            // I should modify brain.js to export a `checkReachability(targetPos)` function.
+            
+            // Let's first implement the logic calling a new function I'll add to brain.js.
+            const result = isPointReachable(robot.position, pickedPoint);
+            
+            if (result) {
+                currentTarget = new BABYLON.Vector3(pickedPoint.x, 0.4, pickedPoint.z);
+                brainMode = 'auto-nav';
+                robot.currentPath = null; // Clear path to force recalcs
+                pickingMode = false;
+                setDestBtn.innerText = "Set Custom Destination";
+                setDestBtn.className = "secondary";
+                canvas.style.cursor = "default";
+                brainIndicator.innerText = "Propelling to Point...";
+                brainIndicator.className = "value active";
+            } else {
+                alert("the learned cannot go there");
+            }
+        }
+    };
 
     const unloadBtn = document.getElementById("btn-unload-brain");
     const modal = document.getElementById("model-selection-modal");

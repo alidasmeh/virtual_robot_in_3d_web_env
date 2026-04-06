@@ -369,3 +369,13 @@ export async function mapEnvironment(robot, scene, bounds) {
 export function stopMapping() {
     mappingActive = false;
 }
+
+/**
+ * Checks if a point is reachable using the learned map.
+ * Returns true if a path exists.
+ */
+export function isPointReachable(startPos, targetPos) {
+    if (!brain) return false;
+    const path = brain.findPath(startPos, targetPos);
+    return path !== null;
+}
