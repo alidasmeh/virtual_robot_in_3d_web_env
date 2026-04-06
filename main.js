@@ -11,12 +11,12 @@ const createScene = (canvas) => {
     const scene = new BABYLON.Scene(engine);
 
     // Camera
-    const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 16, new BABYLON.Vector3(0, 0, 0), scene);
+    const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 25, new BABYLON.Vector3(8.5, 0, 0), scene);
     camera.attachControl(canvas, true);
     // Remove default arrow-key mapping for camera movement (reserved for robot)
     camera.inputs.removeByType("ArcRotateCameraKeyboardMoveInput");
     camera.lowerRadiusLimit = 5;
-    camera.upperRadiusLimit = 25;
+    camera.upperRadiusLimit = 60;
 
     // Light
     const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 5, 0), scene);
@@ -40,10 +40,36 @@ const createScene = (canvas) => {
     const seatMat = new BABYLON.StandardMaterial("seatMat", scene);
     seatMat.diffuseColor = new BABYLON.Color3(0.2, 0.5, 0.7);
 
-    // Floor
-    const floor = BABYLON.MeshBuilder.CreateGround("floor", { width: ROOM_WIDTH, height: ROOM_DEPTH }, scene);
-    floor.material = floorMat;
-    floor.checkCollisions = true;
+    const bedFrameMat = new BABYLON.StandardMaterial("bedFrameMat", scene);
+    bedFrameMat.diffuseColor = new BABYLON.Color3(0.3, 0.2, 0.1);
+    
+    const mattressMat = new BABYLON.StandardMaterial("mattressMat", scene);
+    mattressMat.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+    
+    const pillowMat = new BABYLON.StandardMaterial("pillowMat", scene);
+    pillowMat.diffuseColor = new BABYLON.Color3(0.8, 0.8, 1);
+
+    // Environment Constants
+    const CORRIDOR_WIDTH = 2.4; 
+    const CORRIDOR_LENGTH = 5; // A bit of distance
+    const ROOM2_X = ROOM_WIDTH + CORRIDOR_LENGTH;
+
+    // Floor 1
+    const floor1 = BABYLON.MeshBuilder.CreateGround("floor1", { width: ROOM_WIDTH, height: ROOM_DEPTH }, scene);
+    floor1.material = floorMat;
+    floor1.checkCollisions = true;
+
+    // Corridor Floor
+    const corridorFloor = BABYLON.MeshBuilder.CreateGround("corridorFloor", { width: CORRIDOR_LENGTH, height: CORRIDOR_WIDTH }, scene);
+    corridorFloor.position.x = ROOM_WIDTH / 2 + CORRIDOR_LENGTH / 2;
+    corridorFloor.material = floorMat;
+    corridorFloor.checkCollisions = true;
+
+    // Floor 2
+    const floor2 = BABYLON.MeshBuilder.CreateGround("floor2", { width: ROOM_WIDTH, height: ROOM_DEPTH }, scene);
+    floor2.position.x = ROOM2_X;
+    floor2.material = floorMat;
+    floor2.checkCollisions = true;
 
     // Walls
     const createWall = (name, width, height, position, rotationY = 0) => {
@@ -55,18 +81,32 @@ const createScene = (canvas) => {
         return wall;
     };
 
-    createWall("wallBack", ROOM_WIDTH, WALL_HEIGHT, new BABYLON.Vector3(0, WALL_HEIGHT / 2, ROOM_DEPTH / 2));
-    createWall("wallFront", ROOM_WIDTH, WALL_HEIGHT, new BABYLON.Vector3(0, WALL_HEIGHT / 2, -ROOM_DEPTH / 2));
-    createWall("wallLeft", ROOM_DEPTH, WALL_HEIGHT, new BABYLON.Vector3(-ROOM_WIDTH / 2, WALL_HEIGHT / 2, 0), Math.PI / 2);
-    createWall("wallRight", ROOM_DEPTH, WALL_HEIGHT, new BABYLON.Vector3(ROOM_WIDTH / 2, WALL_HEIGHT / 2, 0), Math.PI / 2);
+    // Room 1 Walls
+    createWall("wallBack1", ROOM_WIDTH, WALL_HEIGHT, new BABYLON.Vector3(0, WALL_HEIGHT / 2, ROOM_DEPTH / 2));
+    createWall("wallFront1", ROOM_WIDTH, WALL_HEIGHT, new BABYLON.Vector3(0, WALL_HEIGHT / 2, -ROOM_DEPTH / 2));
+    createWall("wallLeft1", ROOM_DEPTH, WALL_HEIGHT, new BABYLON.Vector3(-ROOM_WIDTH / 2, WALL_HEIGHT / 2, 0), Math.PI / 2);
+    
+    // Room 1 Right Wall (with opening)
+    const sideWallWidth = (ROOM_DEPTH - CORRIDOR_WIDTH) / 2;
+    createWall("wallRight1_Part1", sideWallWidth, WALL_HEIGHT, new BABYLON.Vector3(ROOM_WIDTH/2, WALL_HEIGHT/2, -ROOM_DEPTH/2 + sideWallWidth/2), Math.PI / 2);
+    createWall("wallRight1_Part2", sideWallWidth, WALL_HEIGHT, new BABYLON.Vector3(ROOM_WIDTH/2, WALL_HEIGHT/2, ROOM_DEPTH/2 - sideWallWidth/2), Math.PI / 2);
+    createWall("wallRight1_Top", CORRIDOR_WIDTH, WALL_HEIGHT - 2.5, new BABYLON.Vector3(ROOM_WIDTH/2, 2.5 + (WALL_HEIGHT - 2.5)/2, 0), Math.PI / 2);
 
-    // Door (represented as a colored patch on a wall)
-    const door = BABYLON.MeshBuilder.CreateBox("door", { width: 1.5, height: 2.5, depth: 0.25 }, scene);
-    door.position = new BABYLON.Vector3(ROOM_WIDTH / 2 - 0.1, 2.5 / 2, 0);
-    door.rotation.y = Math.PI / 2;
-    const doorMat = new BABYLON.StandardMaterial("doorMat", scene);
-    doorMat.diffuseColor = new BABYLON.Color3(0.3, 0.15, 0.05);
-    door.material = doorMat;
+    // Corridor Walls
+    createWall("wallCorridorBack", CORRIDOR_LENGTH, WALL_HEIGHT-1, new BABYLON.Vector3(ROOM_WIDTH/2 + CORRIDOR_LENGTH/2, (WALL_HEIGHT-1)/2, CORRIDOR_WIDTH/2));
+    createWall("wallCorridorFront", CORRIDOR_LENGTH, WALL_HEIGHT-1, new BABYLON.Vector3(ROOM_WIDTH/2 + CORRIDOR_LENGTH/2, (WALL_HEIGHT-1)/2, -CORRIDOR_WIDTH/2));
+
+    // Room 2 Walls
+    createWall("wallBack2", ROOM_WIDTH, WALL_HEIGHT, new BABYLON.Vector3(ROOM2_X, WALL_HEIGHT / 2, ROOM_DEPTH / 2));
+    createWall("wallFront2", ROOM_WIDTH, WALL_HEIGHT, new BABYLON.Vector3(ROOM2_X, WALL_HEIGHT / 2, -ROOM_DEPTH / 2));
+    createWall("wallRight2", ROOM_DEPTH, WALL_HEIGHT, new BABYLON.Vector3(ROOM2_X + ROOM_WIDTH / 2, WALL_HEIGHT / 2, 0), Math.PI / 2);
+
+    // Room 2 Left Wall (with opening)
+    createWall("wallLeft2_Part1", sideWallWidth, WALL_HEIGHT, new BABYLON.Vector3(ROOM2_X - ROOM_WIDTH/2, WALL_HEIGHT/2, -ROOM_DEPTH/2 + sideWallWidth/2), Math.PI / 2);
+    createWall("wallLeft2_Part2", sideWallWidth, WALL_HEIGHT, new BABYLON.Vector3(ROOM2_X - ROOM_WIDTH/2, WALL_HEIGHT/2, ROOM_DEPTH/2 - sideWallWidth/2), Math.PI / 2);
+    createWall("wallLeft2_Top", CORRIDOR_WIDTH, WALL_HEIGHT - 2.5, new BABYLON.Vector3(ROOM2_X - ROOM_WIDTH/2, 2.5 + (WALL_HEIGHT - 2.5)/2, 0), Math.PI / 2);
+
+    // (Door removed to make way for corridor)
 
     // Table
     const tableTop = BABYLON.MeshBuilder.CreateBox("tableTop", { width: 3, height: 0.1, depth: 2 }, scene);
@@ -109,6 +149,27 @@ const createScene = (canvas) => {
 
     createSeat("seat1", new BABYLON.Vector3(2.5, 0.25, 0));
     createSeat("seat2", new BABYLON.Vector3(-2.5, 0.25, 0));
+
+    // Room 2 Furniture: Bed in the corner
+    const createBed = (name, position) => {
+        const frame = BABYLON.MeshBuilder.CreateBox(name + "Frame", { width: 4, height: 0.4, depth: 2.5 }, scene);
+        frame.position = new BABYLON.Vector3(position.x, 0.2, position.z);
+        frame.material = bedFrameMat;
+        frame.checkCollisions = true;
+
+        const mattress = BABYLON.MeshBuilder.CreateBox(name + "Mattress", { width: 3.8, height: 0.4, depth: 2.3 }, scene);
+        mattress.position = new BABYLON.Vector3(position.x, 0.6, position.z);
+        mattress.material = mattressMat;
+        mattress.checkCollisions = true;
+
+        const pillow = BABYLON.MeshBuilder.CreateBox(name + "Pillow", { width: 0.8, height: 0.2, depth: 1.5 }, scene);
+        pillow.position = new BABYLON.Vector3(position.x + 1.3, 0.8, position.z);
+        pillow.material = pillowMat;
+        
+        return frame;
+    };
+
+    createBed("bed1", new BABYLON.Vector3(ROOM2_X + 3.5, 0, ROOM_DEPTH / 2 - 1.5));
 
     // Simple Robot
     const robot = BABYLON.MeshBuilder.CreateBox("robot", { size: 0.6 }, scene);
