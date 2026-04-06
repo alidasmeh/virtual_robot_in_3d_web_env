@@ -261,6 +261,36 @@ export async function saveBrainState() {
     downloadAnchorNode.remove();
 }
 
+/**
+ * Saves the model state to the server's trained_models folder.
+ */
+export async function saveBrainToServer(customName = null) {
+    if (!brain) return false;
+    
+    try {
+        const state = await brain.exportState();
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = customName || `model_${timestamp}.json`;
+
+        const response = await fetch('/api/save-model', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName, state })
+        });
+
+        if (response.ok) {
+            console.log(`Model saved to server as ${fileName}`);
+            return true;
+        } else {
+            const error = await response.json();
+            throw new Error(error.message || 'Server error');
+        }
+    } catch (err) {
+        console.error("Failed to save map to server:", err);
+        return false;
+    }
+}
+
 export function unloadBrain() {
     if (brain) {
         if (brain.model) {

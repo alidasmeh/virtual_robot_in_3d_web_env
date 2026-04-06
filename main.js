@@ -1,6 +1,6 @@
 import * as BABYLON from 'babylonjs';
 import 'babylonjs-loaders';
-import { navigateTo, mapEnvironment, initBrain, saveBrainState, unloadBrain, stopMapping, isPointReachable, getBrain } from './brain.js';
+import { navigateTo, mapEnvironment, initBrain, saveBrainState, saveBrainToServer, unloadBrain, stopMapping, isPointReachable, getBrain } from './brain.js';
 
 // Define the environment dimensions
 const ROOM_WIDTH = 12;
@@ -329,8 +329,21 @@ const createScene = (canvas) => {
         }
     });
 
-    saveMapBtn.addEventListener("click", () => {
-        saveBrainState();
+    saveMapBtn.addEventListener("click", async () => {
+        const originalText = brainIndicator.innerText;
+        brainIndicator.innerText = "Saving to Server...";
+        const success = await saveBrainToServer();
+        if (success) {
+            brainIndicator.innerText = "Model Saved to Folder";
+            brainIndicator.className = "value active";
+        } else {
+            brainIndicator.innerText = "Save Failed";
+            brainIndicator.className = "value danger";
+        }
+        setTimeout(() => {
+            brainIndicator.innerText = originalText;
+            brainIndicator.className = "value active";
+        }, 3000);
     });
 
     stopBtn.addEventListener("click", async () => {
@@ -338,8 +351,8 @@ const createScene = (canvas) => {
         brainMode = 'manual';
         stopBtn.classList.add("hidden");
         // Give the loop a short moment to resolve if it's currently running
-        setTimeout(() => {
-            saveBrainState();
+        setTimeout(async () => {
+            await saveBrainToServer();
             brainIndicator.innerText = "Learning Stopped & Saved";
             brainIndicator.className = "value active";
             saveMapBtn.classList.remove("hidden"); // Also show here if manually stopped
