@@ -225,6 +225,7 @@ const createScene = (canvas) => {
     const posDisplay = document.getElementById("robot-pos");
     const brainIndicator = document.getElementById("brain-indicator");
     const stopBtn = document.getElementById("btn-stop-learning");
+    const saveMapBtn = document.getElementById("btn-save-map");
 
 
     // Map Visualization
@@ -262,10 +263,11 @@ const createScene = (canvas) => {
             brainIndicator.innerText = "Brain Ready";
             brainIndicator.className = "value active";
             stopBtn.classList.add("hidden");
+            saveMapBtn.classList.remove("hidden"); // Show it here
         }
     });
 
-    document.getElementById("btn-save-map").addEventListener("click", () => {
+    saveMapBtn.addEventListener("click", () => {
         saveBrainState();
     });
 
@@ -278,6 +280,7 @@ const createScene = (canvas) => {
             saveBrainState();
             brainIndicator.innerText = "Learning Stopped & Saved";
             brainIndicator.className = "value active";
+            saveMapBtn.classList.remove("hidden"); // Also show here if manually stopped
         }, 100);
     });
 
