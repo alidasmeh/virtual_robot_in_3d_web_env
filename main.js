@@ -1,6 +1,6 @@
 import * as BABYLON from 'babylonjs';
 import 'babylonjs-loaders';
-import { navigateTo, mapEnvironment, initBrain } from './brain.js';
+import { navigateTo, mapEnvironment, initBrain, saveBrainState } from './brain.js';
 
 // Define the environment dimensions
 const ROOM_WIDTH = 12;
@@ -11,9 +11,27 @@ const createScene = (canvas) => {
     const engine = new BABYLON.Engine(canvas, true);
     const scene = new BABYLON.Scene(engine);
 
-    // Initialize Brain
+    // Initialize Brain (Asynchronously)
     const bounds = { minX: -7, maxX: 24, minZ: -7, maxZ: 7 };
-    initBrain(bounds);
+    
+    // Attempt to load pre-trained map
+    const loadBrain = async () => {
+        try {
+            const response = await fetch('./nslam_map.json');
+            if (response.ok) {
+                const preTrainedData = await response.json();
+                await initBrain(bounds, preTrainedData);
+                document.getElementById("brain-indicator").innerText = "Pre-trained Brain Loaded";
+                document.getElementById("brain-indicator").className = "value active";
+            } else {
+                await initBrain(bounds);
+            }
+        } catch (e) {
+            console.log("No pre-trained map found, starting fresh.");
+            await initBrain(bounds);
+        }
+    };
+    loadBrain();
 
     // Camera
     const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 25, new BABYLON.Vector3(8.5, 0, 0), scene);
@@ -141,6 +159,10 @@ const createScene = (canvas) => {
         brainMode = 'manual';
         brainIndicator.innerText = "Brain Ready";
         brainIndicator.className = "value active";
+    });
+
+    document.getElementById("btn-save-map").addEventListener("click", () => {
+        saveBrainState();
     });
 
     const inputMap = {};

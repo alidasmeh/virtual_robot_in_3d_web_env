@@ -1,6 +1,8 @@
 import * as tf from '@tensorflow/tfjs';
 import * as BABYLON from 'babylonjs';
 
+let brain;
+
 /**
  * GridBrain handles the mapping and pathfinding logic.
  * It uses a grid-based representation for pathfinding and a TF.js model
@@ -19,6 +21,65 @@ class GridBrain {
         // TF.js Model to "learn" the environment
         this.model = this.createModel();
         this.trainingData = [];
+    }
+
+    /**
+     * Exports the current brain state (grid + model) to a JSON-serializable object.
+     */
+    async exportState() {
+        const modelSaveResult = await this.model.save(tf.io.withSaveHandler(async (artifacts) => artifacts));
+        
+        // Convert model weights (ArrayBuffer) to Base64 for JSON storage
+        const weightData = btoa(String.fromCharCode(...new Uint8Array(modelSaveResult.weightData)));
+
+        return {
+            bounds: this.bounds,
+            gridSize: this.gridSize,
+            grid: Array.from(this.grid), // Convert Int8Array to regular array
+            modelTopology: modelSaveResult.modelTopology,
+            weightSpecs: modelSaveResult.weightSpecs,
+            weightData: weightData,
+            trainingData: this.trainingData
+        };
+    }
+
+    /**
+     * Imports a previously exported state.
+     */
+    async importState(state) {
+        this.bounds = state.bounds;
+        this.gridSize = state.gridSize;
+        this.width = Math.ceil((this.bounds.maxX - this.bounds.minX) / this.gridSize);
+        this.depth = Math.ceil((this.bounds.maxZ - this.bounds.minZ) / this.gridSize);
+        
+        this.grid = new Int8Array(state.grid);
+        this.trainingData = state.trainingData || [];
+
+        // Load the model weights if they exist, otherwise keep the initialized model
+        if (state.modelTopology && state.weightData) {
+            try {
+                const weightData = new Uint8Array(atob(state.weightData).split("").map(c => c.charCodeAt(0))).buffer;
+                
+                this.model = await tf.loadLayersModel(tf.io.fromMemory({
+                    modelTopology: state.modelTopology,
+                    weightSpecs: state.weightSpecs,
+                    weightData: weightData
+                }));
+
+                this.model.compile({
+                    optimizer: tf.train.adam(0.01),
+                    loss: 'binaryCrossentropy'
+                });
+                console.log("Neural model imported successfully.");
+            } catch (e) {
+                console.warn("Found model data but failed to load it. Re-initializing model.", e);
+                this.model = this.createModel();
+            }
+        } else {
+            console.log("No neural model data found. Initialized with fresh model.");
+        }
+
+        console.log("Brain state imported successfully.");
     }
 
     createModel() {
@@ -91,7 +152,16 @@ class GridBrain {
         const startIdx = this.getGridIndex(startPos.x, startPos.z);
         const endIdx = this.getGridIndex(targetPos.x, targetPos.z);
 
-        if (startIdx === -1 || endIdx === -1) return null;
+        if (startIdx === -1 || endIdx === -1) {
+            console.warn(`Pathfinding failed: Start or End index out of bounds. Start: ${startIdx}, End: ${endIdx}`);
+            return null;
+        }
+
+        if (this.grid[startIdx] !== 1) console.warn(`Pathfinding warning: Start cell is not marked as traversable (${this.grid[startIdx]})`);
+        if (this.grid[endIdx] !== 1) {
+            console.error(`Pathfinding error: Target cell is not marked as traversable (${this.grid[endIdx]})`);
+            return null;
+        }
 
         const openSet = [startIdx];
         const cameFrom = new Map();
@@ -112,8 +182,8 @@ class GridBrain {
 
             const neighbors = this.getNeighbors(current);
             for (const neighbor of neighbors) {
-                // Weight obstacles heavily or skip them
-                if (this.grid[neighbor] === -1) continue; 
+                // Only allow traversing cells explicitly marked as traversable (1)
+                if (this.grid[neighbor] !== 1) continue; 
                 
                 const tentativeGScore = gScore.get(current) + 1;
                 if (tentativeGScore < (gScore.get(neighbor) ?? Infinity)) {
@@ -158,11 +228,24 @@ class GridBrain {
     }
 }
 
-let brain = null;
-
-export function initBrain(bounds) {
+export async function initBrain(bounds, preTrainedData = null) {
     brain = new GridBrain(bounds);
+    if (preTrainedData) {
+        await brain.importState(preTrainedData);
+    }
     return brain;
+}
+
+export async function saveBrainState() {
+    if (!brain) return;
+    const state = await brain.exportState();
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "nslam_map.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
 }
 
 /**
@@ -207,7 +290,7 @@ export function navigateTo(robot, targetPos, speed = 0.1) {
  * Exploration behavior to map the environment
  */
 export async function mapEnvironment(robot, scene, bounds) {
-    if (!brain) initBrain(bounds);
+    if (!brain) await initBrain(bounds);
     
     console.log("Brain is scanning environment...");
     

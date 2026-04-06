@@ -272,6 +272,18 @@ button:hover {
   transform: translateX(4px);
 }
 
+button.secondary {
+  border-color: var(--secondary-color);
+  color: var(--text-muted);
+}
+
+button.secondary:hover {
+  background: rgba(112, 0, 255, 0.1);
+  border-color: var(--secondary-color);
+  color: var(--text-main);
+  box-shadow: 0 0 10px rgba(112, 0, 255, 0.3);
+}
+
 #brain-indicator.idle { color: #facc15; }
 #brain-indicator.active { color: #00ff88; }
 #brain-indicator.thinking { 
