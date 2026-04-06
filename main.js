@@ -2,17 +2,20 @@ import * as BABYLON from 'babylonjs';
 import 'babylonjs-loaders';
 import { navigateTo, mapEnvironment, initBrain, saveBrainState, saveBrainToServer, unloadBrain, stopMapping, isPointReachable, getBrain } from './brain.js';
 
-// Define the environment dimensions
-const ROOM_WIDTH = 12;
-const ROOM_DEPTH = 12;
-const WALL_HEIGHT = 4;
-
+// Initialization
 const createScene = (canvas) => {
     const engine = new BABYLON.Engine(canvas, true);
     const scene = new BABYLON.Scene(engine);
 
     // Initialize Brain (Asynchronously)
-    const bounds = { minX: -7, maxX: 24, minZ: -7, maxZ: 7 };
+    // Scaling and Bounds
+    const SCALE = 0.1;
+    const bounds = { 
+        minX: -7 * SCALE, 
+        maxX: 24 * SCALE, 
+        minZ: -7 * SCALE, 
+        maxZ: 7 * SCALE 
+    };
     
     // Attempt to load pre-trained map
     const loadBrain = async () => {
@@ -35,12 +38,13 @@ const createScene = (canvas) => {
     };
     loadBrain();
 
-    // Camera
-    const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 1.1, Math.PI / 4.0, 50, new BABYLON.Vector3(8.5, 0, 0), scene);
+    // Camera - Adjusted for a better overview of the entire room
+    const sceneCenter = new BABYLON.Vector3(8.5 * SCALE, 0, 0);
+    const camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 1.5, Math.PI / 4.0, 90, sceneCenter, scene);
     camera.attachControl(canvas, true);
     camera.inputs.removeByType("ArcRotateCameraKeyboardMoveInput");
-    camera.lowerRadiusLimit = 5;
-    camera.upperRadiusLimit = 60;
+    camera.lowerRadiusLimit = 1;
+    camera.upperRadiusLimit = 100;
 
     // Light
     const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 5, 0), scene);
@@ -58,64 +62,32 @@ const createScene = (canvas) => {
     mapPointMat.emissiveColor = new BABYLON.Color3(0, 1, 0.5);
     mapPointMat.alpha = 0.3;
 
-    // Environment
-    const CORRIDOR_WIDTH = 2.4; 
-    const CORRIDOR_LENGTH = 5;
-    const ROOM2_X = ROOM_WIDTH + CORRIDOR_LENGTH;
+    // Environment - Loaded from 3D File
+    BABYLON.SceneLoader.ImportMeshAsync("", "./3d_model_files/", "3d room without cieling-from blender.glb", scene)
+    .then((result) => {
+        // Apply scaling and ensure room is at the origin
+        if (result.meshes.length > 0) {
+            const root = result.meshes[0];
+            root.scaling.scaleInPlace(SCALE);
+            root.position = new BABYLON.Vector3(0, 0, 0); // Move room to y=0
+        }
 
-    // Floors
-    const floor1 = BABYLON.MeshBuilder.CreateGround("floor1", { width: ROOM_WIDTH, height: ROOM_DEPTH }, scene);
-    floor1.material = floorMat;
-    floor1.checkCollisions = true;
+        result.meshes.forEach(mesh => {
+            // Enable collisions
+            mesh.checkCollisions = true;
+            
+            // Optimization for static geometry
+            if (mesh.freezeWorldMatrix) mesh.freezeWorldMatrix();
+        });
+        
+        // Wait a frame for geometry to settle then snap robot
+        setTimeout(snapToFloor, 500);
+        console.log("3D Environment Loaded & Scaled Successfully at Y=0");
+    })
+    .catch(err => {
+        console.error("Failed to load 3D file:", err);
+    });
 
-    const corridorFloor = BABYLON.MeshBuilder.CreateGround("corridorFloor", { width: CORRIDOR_LENGTH, height: CORRIDOR_WIDTH }, scene);
-    corridorFloor.position.x = ROOM_WIDTH / 2 + CORRIDOR_LENGTH / 2;
-    corridorFloor.material = floorMat;
-    corridorFloor.checkCollisions = true;
-
-    const floor2 = BABYLON.MeshBuilder.CreateGround("floor2", { width: ROOM_WIDTH, height: ROOM_DEPTH }, scene);
-    floor2.position.x = ROOM2_X;
-    floor2.material = floorMat;
-    floor2.checkCollisions = true;
-
-    // Walls Helper
-    const createWall = (name, width, height, position, rotationY = 0) => {
-        const wall = BABYLON.MeshBuilder.CreateBox(name, { width, height, depth: 0.2 }, scene);
-        wall.position = position;
-        wall.rotation.y = rotationY;
-        wall.material = wallMat;
-        wall.checkCollisions = true;
-        return wall;
-    };
-
-    // Room 1 Walls
-    createWall("wallBack1", ROOM_WIDTH, WALL_HEIGHT, new BABYLON.Vector3(0, WALL_HEIGHT / 2, ROOM_DEPTH / 2));
-    createWall("wallFront1", ROOM_WIDTH, WALL_HEIGHT, new BABYLON.Vector3(0, WALL_HEIGHT / 2, -ROOM_DEPTH / 2));
-    createWall("wallLeft1", ROOM_DEPTH, WALL_HEIGHT, new BABYLON.Vector3(-ROOM_WIDTH / 2, WALL_HEIGHT / 2, 0), Math.PI / 2);
-    
-    const sideWallWidth = (ROOM_DEPTH - CORRIDOR_WIDTH) / 2;
-    createWall("wallRight1_P1", sideWallWidth, WALL_HEIGHT, new BABYLON.Vector3(ROOM_WIDTH/2, WALL_HEIGHT/2, -ROOM_DEPTH/2 + sideWallWidth/2), Math.PI / 2);
-    createWall("wallRight1_P2", sideWallWidth, WALL_HEIGHT, new BABYLON.Vector3(ROOM_WIDTH/2, WALL_HEIGHT/2, ROOM_DEPTH/2 - sideWallWidth/2), Math.PI / 2);
-
-    // Corridor
-    createWall("wallC1", CORRIDOR_LENGTH, WALL_HEIGHT-1, new BABYLON.Vector3(ROOM_WIDTH/2 + CORRIDOR_LENGTH/2, (WALL_HEIGHT-1)/2, CORRIDOR_WIDTH/2));
-    createWall("wallC2", CORRIDOR_LENGTH, WALL_HEIGHT-1, new BABYLON.Vector3(ROOM_WIDTH/2 + CORRIDOR_LENGTH/2, (WALL_HEIGHT-1)/2, -CORRIDOR_WIDTH/2));
-
-    // Room 2 Walls
-    createWall("wallBack2", ROOM_WIDTH, WALL_HEIGHT, new BABYLON.Vector3(ROOM2_X, WALL_HEIGHT / 2, ROOM_DEPTH / 2));
-    createWall("wallFront2", ROOM_WIDTH, WALL_HEIGHT, new BABYLON.Vector3(ROOM2_X, WALL_HEIGHT / 2, -ROOM_DEPTH / 2));
-    createWall("wallRight2", ROOM_DEPTH, WALL_HEIGHT, new BABYLON.Vector3(ROOM2_X + ROOM_WIDTH / 2, WALL_HEIGHT / 2, 0), Math.PI / 2);
-    createWall("wallLeft2_P1", sideWallWidth, WALL_HEIGHT, new BABYLON.Vector3(ROOM2_X - ROOM_WIDTH/2, WALL_HEIGHT/2, -ROOM_DEPTH/2 + sideWallWidth/2), Math.PI / 2);
-    createWall("wallLeft2_P2", sideWallWidth, WALL_HEIGHT, new BABYLON.Vector3(ROOM2_X - ROOM_WIDTH/2, WALL_HEIGHT/2, ROOM_DEPTH/2 - sideWallWidth/2), Math.PI / 2);
-
-    // Furniture (Simplified)
-    const table = BABYLON.MeshBuilder.CreateBox("table", { width: 3, height: 0.8, depth: 2 }, scene);
-    table.position = new BABYLON.Vector3(0, 0.4, 0);
-    table.checkCollisions = true;
-
-    const bed = BABYLON.MeshBuilder.CreateBox("bed", { width: 4, height: 0.6, depth: 2.5 }, scene);
-    bed.position = new BABYLON.Vector3(ROOM2_X + 3.5, 0.3, 4);
-    bed.checkCollisions = true;
 
     // Robot & Control State
     let brainMode = 'manual';
@@ -125,14 +97,27 @@ const createScene = (canvas) => {
     const faceColors = new Array(6).fill(new BABYLON.Color4(1, 0.9, 0, 1)); // Bright Yellow (RGBA)
     faceColors[0] = new BABYLON.Color4(0.0, 0.0, 255, 0.30); // Front Face Blue (RGBA)
 
+    const robotWidth = 0.8;
+    const robotHeight = 1.0;
+    const robotDepth = 0.6;
+
     const robot = BABYLON.MeshBuilder.CreateBox("robot", { 
-        width: 0.5, height: 0.7, depth: 0.4, 
+        width: robotWidth, height: robotHeight, depth: robotDepth, 
         faceColors: faceColors 
     }, scene);
-    robot.position = new BABYLON.Vector3(0, 0.35, 4);
+    
+    // Position robot in a more centered open area (around midpoint of x bounds)
+    robot.position = new BABYLON.Vector3(1.0, robotHeight / 2 + 0.1, 0); 
     robot.checkCollisions = true;
-    robot.ellipsoid = new BABYLON.Vector3(0.3, 0.35, 0.3);
+    robot.applyGravity = true; // Use built-in gravity
+    robot.ellipsoid = new BABYLON.Vector3(robotWidth / 2, robotHeight / 2, robotDepth / 2);
+    robot.ellipsoidOffset = new BABYLON.Vector3(0, 0, 0);
     robot.currentPath = null;
+
+    // Apply a small downward force once to ensure it hits the floor
+    // setTimeout(() => {
+    //     robot.moveWithCollisions(new BABYLON.Vector3(0, -0.1, 0));
+    // }, 500);
 
     // Body Material
     const robotMat = new BABYLON.StandardMaterial("robotMat", scene);
@@ -141,7 +126,17 @@ const createScene = (canvas) => {
     robotMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
     robot.material = robotMat;
 
-    // Face Screen
+    // Function to snap robot to floor
+    const snapToFloor = () => {
+        const ray = new BABYLON.Ray(new BABYLON.Vector3(robot.position.x, 10, robot.position.z), new BABYLON.Vector3(0, -1, 0));
+        const pick = scene.pickWithRay(ray, (m) => m !== robot && (m.name.includes("floor") || m.checkCollisions));
+        if (pick.hit) {
+            robot.position.y = pick.pickedPoint.y + robotHeight / 2 + 0.02; // Tiny gap to prevent sticking
+            console.log("Robot snapped to floor at y:", robot.position.y);
+        } else {
+            console.warn("Floor not detected under robot during snap.");
+        }
+    };
     const faceScreen = BABYLON.MeshBuilder.CreatePlane("faceScreen", { width: 0.4, height: 0.3 }, scene);
     faceScreen.parent = robot;
     faceScreen.position.z = 0.201; // Offset to avoid z-fighting
@@ -356,7 +351,9 @@ const createScene = (canvas) => {
 
     document.getElementById("btn-auto-nav").addEventListener("click", () => {
         brainMode = 'auto-nav';
-        currentTarget = new BABYLON.Vector3(ROOM2_X, 0.4, 0); // Target Room 2
+        // Note: ROOM2_X is replaced with a fixed coordinate (17) suitable for the old layout.
+        // You may need to update this to a safe coordinate in your 3D model.
+        currentTarget = new BABYLON.Vector3(17 * SCALE, 0.4, 0); 
         robot.currentPath = null; // Reset path to force recalculation
         brainIndicator.innerText = "Computing Path...";
         brainIndicator.className = "value thinking";
@@ -553,8 +550,10 @@ const createScene = (canvas) => {
             const speed = 0.1;
             const rotSpeed = 0.05;
             const forward = robot.forward.scale(speed);
+            const backward = robot.forward.scale(-speed);
+
             if (inputMap["ArrowUp"]) { robot.moveWithCollisions(forward); moved = true; }
-            if (inputMap["ArrowDown"]) { robot.moveWithCollisions(forward.scale(-1)); moved = true; }
+            if (inputMap["ArrowDown"]) { robot.moveWithCollisions(backward); moved = true; }
             if (inputMap["ArrowLeft"]) { robot.rotation.y -= rotSpeed; moved = true; }
             if (inputMap["ArrowRight"]) { robot.rotation.y += rotSpeed; moved = true; }
         } else if (brainMode === 'auto-nav') {
@@ -574,11 +573,13 @@ const createScene = (canvas) => {
         }
 
         if (moved) {
-            posDisplay.innerText = `${robot.position.x.toFixed(1)}, ${robot.position.y.toFixed(1)}, ${robot.position.z.toFixed(1)}`;
+            posDisplay.innerText = `${(robot.position.x / SCALE).toFixed(1)}, ${robot.position.y.toFixed(1)}, ${(robot.position.z / SCALE).toFixed(1)}`;
         }
     });
 
     scene.collisionsEnabled = true;
+    scene.gravity = new BABYLON.Vector3(0, -0.05, 0); // Scale-appropriate gravity
+    
     return { engine, scene };
 };
 

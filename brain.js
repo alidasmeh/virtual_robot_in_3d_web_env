@@ -433,9 +433,11 @@ export async function mapEnvironment(robot, scene, bounds) {
     // For this demo, we'll simulate a fast scan by checking collisions in the scene
     // but the robot will actually move to key points to "learn".
     
+    const stepX = (bounds.maxX - bounds.minX) / 10;
+    const stepZ = (bounds.maxZ - bounds.minZ) / 5;
     const waypoints = [];
-    for (let x = bounds.minX; x <= bounds.maxX; x += 3) {
-        for (let z = bounds.minZ; z <= bounds.maxZ; z += 3) {
+    for (let x = bounds.minX; x <= bounds.maxX; x += stepX) {
+        for (let z = bounds.minZ; z <= bounds.maxZ; z += stepZ) {
             waypoints.push(new BABYLON.Vector3(x, 0.5, z));
         }
     }
