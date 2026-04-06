@@ -228,6 +228,31 @@ class GridBrain {
         return path;
     }
 
+    /**
+     * Finds the closest sampled (traversable) cell to a given position.
+     */
+    findClosestSampledPosition(targetPos) {
+        const targetIdx = this.getGridIndex(targetPos.x, targetPos.z);
+        if (targetIdx !== -1 && this.grid[targetIdx] === 1) return targetPos;
+
+        let closestIdx = -1;
+        let minDistance = Infinity;
+
+        // Simple exhaust search for demo; for large grids, use a more efficient approach
+        for (let i = 0; i < this.grid.length; i++) {
+            if (this.grid[i] === 1) {
+                const pos = this.getCoords(i);
+                const dist = Math.sqrt(Math.pow(pos.x - targetPos.x, 2) + Math.pow(pos.z - targetPos.z, 2));
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    closestIdx = i;
+                }
+            }
+        }
+
+        return closestIdx !== -1 ? this.getCoords(closestIdx) : null;
+    }
+
     getGridData() {
         return {
             grid: this.grid,
@@ -307,12 +332,68 @@ export function unloadBrain() {
 export function navigateTo(robot, targetPos, speed = 0.1) {
     if (!brain) return false;
 
-    // Check if we already have a path
+    // Check if we already have a path or if we are continuing towards an original target
     if (!robot.currentPath || robot.currentPath.length === 0) {
-        robot.currentPath = brain.findPath(robot.position, targetPos);
+        // If target is unvisited or an obstacle, find nearest sampled traversable point
+        const targetIdx = brain.getGridIndex(targetPos.x, targetPos.z);
+        let actualTarget = targetPos;
+        
+        if (targetIdx === -1 || brain.grid[targetIdx] !== 1) {
+            console.log("Target is not in learned map or not traversable. Finding closest known position...");
+            actualTarget = brain.findClosestSampledPosition(targetPos);
+            if (!actualTarget) {
+                console.warn("No sampled positions found in brain!");
+                return false;
+            }
+            // Store original target to continue after reaching sampled point
+            robot.originalTarget = targetPos;
+        } else {
+            robot.originalTarget = null;
+        }
+
+        robot.currentPath = brain.findPath(robot.position, actualTarget);
+        
+        // If still no path (maybe start point is islanded), try to find a path from closest sampled start
         if (!robot.currentPath) {
-            console.warn("No path found to target!");
-            return false;
+            console.warn("No path found to target from current position. Checking if robot itself is in unknown territory...");
+            const startIdx = brain.getGridIndex(robot.position.x, robot.position.z);
+            if (startIdx === -1 || brain.grid[startIdx] !== 1) {
+                const nearestSampled = brain.findClosestSampledPosition(robot.position);
+                if (nearestSampled) {
+                    robot.currentPath = [nearestSampled]; // Move back to map
+                }
+            }
+        }
+
+        if (!robot.currentPath || robot.currentPath.length === 0) {
+            // Already there or no path found
+            if (robot.originalTarget) {
+                console.log("Already at closest sampled point. Moving towards original target...");
+                // We're at the closest sampled point, now move directly to original
+                const directionToOriginal = robot.originalTarget.subtract(robot.position);
+                directionToOriginal.y = 0;
+                if (directionToOriginal.length() < 0.3) {
+                    robot.originalTarget = null;
+                    return true;
+                }
+                const moveVector = directionToOriginal.normalize().scale(speed);
+                const prevPos = robot.position.clone();
+                robot.moveWithCollisions(moveVector);
+                
+                const movedDist = BABYLON.Vector3.Distance(prevPos, robot.position);
+                const blocked = movedDist < (speed * 0.5);
+                
+                // Learn as we go
+                brain.learn(robot.position.x, robot.position.z, !blocked);
+                if (blocked) {
+                    console.warn("Direct move blocked by object. Navigation aborted.");
+                    robot.originalTarget = null;
+                    return true; // Consider reached (or at least finished)
+                }
+                
+                return false;
+            }
+            return true;
         }
     }
 
@@ -322,11 +403,11 @@ export function navigateTo(robot, targetPos, speed = 0.1) {
     
     if (direction.length() < 0.3) {
         robot.currentPath.shift(); // Reached waypoint
-        if (robot.currentPath.length === 0) return true; // Reached final destination
+        // If finished path but have an original target (unsampled), it will loop back and handle it above
         return false;
     }
 
-    const moveVector = direction.normalize().scale(speed);
+    const moveVector = direction.normalize().scale(speed * 1.5); // "Quickly" move along known paths
     robot.moveWithCollisions(moveVector);
 
     // Rotate to face movement
@@ -418,6 +499,24 @@ export function stopMapping() {
  */
 export function isPointReachable(startPos, targetPos) {
     if (!brain) return false;
-    const path = brain.findPath(startPos, targetPos);
-    return path !== null;
+    
+    let actualStart = startPos;
+    const startIdx = brain.getGridIndex(startPos.x, startPos.z);
+    
+    // If robot is in unknown territory, see if it can reach the map at all
+    if (startIdx === -1 || brain.grid[startIdx] !== 1) {
+        actualStart = brain.findClosestSampledPosition(startPos);
+        if (!actualStart) return false; // No map at all
+    }
+
+    // Check if target is explicitly traversable from our (possibly adjusted) start
+    const path = brain.findPath(actualStart, targetPos);
+    if (path) return true;
+
+    // If target not directly reachable, check if its representative is
+    const nearestTarget = brain.findClosestSampledPosition(targetPos);
+    if (!nearestTarget) return false;
+
+    const pathToNearest = brain.findPath(actualStart, nearestTarget);
+    return pathToNearest !== null;
 }
