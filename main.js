@@ -21,16 +21,16 @@ const createScene = (canvas) => {
   // Scaling and Bounds
   const SCALE = 0.1;
   const bounds = {
-    minX: -7 * SCALE,
-    maxX: 24 * SCALE,
-    minZ: -7 * SCALE,
-    maxZ: 7 * SCALE,
+    minX: -60 * SCALE,
+    maxX: 80 * SCALE,
+    minZ: -60 * SCALE,
+    maxZ: 60 * SCALE,
   };
 
   // Attempt to load pre-trained map
   const loadBrain = async () => {
     try {
-      const response = await fetch("./nslam_map_learned.json");
+      const response = await fetch("./model_2026-04-06T19-16-54-453Z.json");
       if (response.ok) {
         const preTrainedData = await response.json();
         await initBrain(bounds, preTrainedData);
@@ -119,6 +119,13 @@ const createScene = (canvas) => {
         const boundingBox = root.getHierarchyBoundingVectors();
         const minY = boundingBox.min.y;
         root.position.y = -minY; // Shifts the model so its floor is exactly at y=0
+
+        console.log("Room Dimensions:", {
+          min: boundingBox.min,
+          max: boundingBox.max,
+          width: boundingBox.max.x - boundingBox.min.x,
+          depth: boundingBox.max.z - boundingBox.min.z,
+        });
       }
 
       // Add Inspector Toggle (Ruler/Debug Tool)
@@ -189,6 +196,12 @@ const createScene = (canvas) => {
   robot.position = new BABYLON.Vector3(1.0, robotHeight / 2 + 0.1, 0);
   robot.checkCollisions = true;
   robot.applyGravity = true;
+
+  // Let the brain learn current starting point as traversable once initialized
+  setTimeout(() => {
+    const brain = getBrain();
+    if (brain) brain.learn(robot.position.x, robot.position.z, true);
+  }, 1000);
 
   // Use a slightly taller ellipsoid to improve vertical stability during collisions
   robot.ellipsoid = new BABYLON.Vector3(
@@ -541,8 +554,8 @@ const createScene = (canvas) => {
     if (
       pickingMode &&
       pickResult.hit &&
-      (pickResult.pickedMesh.name.includes("floor") ||
-        pickResult.pickedMesh.name.includes("ground"))
+      pickResult.pickedMesh.name !== "robot" &&
+      pickResult.getNormal(true).y > 0.8 // Only allow relatively flat upward surfaces
     ) {
       const pickedPoint = pickResult.pickedPoint;
 
@@ -698,7 +711,7 @@ const createScene = (canvas) => {
       }
     }
 
-    if (moved) {
+    if (moved || brainMode === "mapping" || brainMode === "auto-nav") {
       posDisplay.innerText = `${(robot.position.x / SCALE).toFixed(1)}, ${robot.position.y.toFixed(1)}, ${(robot.position.z / SCALE).toFixed(1)}`;
     }
   });
