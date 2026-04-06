@@ -2,7 +2,14 @@
 
 A 3D virtual robot simulator built with **BabylonJS** and **TensorFlow.js**. This project demonstrates a robot navigating a 3D home environment, learning from its surroundings, and planning paths using AI.
 
-![Virtual Robot Simulator Screenshot](files/screenshot.png)
+![Virtual Robot Simulator Screenshot in 3D Models](files/training_3d_model.png)
+
+
+## 🌿 Branches
+
+- **main**: Environment with native mesh elements (boxes, spheres, etc.)
+- **3d_model_env**: Environment with 3D model (.glb file)
+
 
 ## ✨ Features
 
@@ -67,43 +74,62 @@ Use the keyboard arrows to control the robot:
 - **Explore & Map**: The robot will start exploring the environment and mapping obstacles.
 - **Navigate to Room 2**: The robot will plan a path to the second room and navigate to it.
 
+## 🖼️ Updating the 3D Model
+
+To update the environment with your own 3D model:
+
+1.  **Prepare your Model**: Export your 3D scene from Blender (or other tools) as a `.glb` or `.gltf` file.
+2.  **Add to Project**: Place the file in the `3d_model_files/` directory.
+3.  **Update Configuration**: Open `main.js` and find the `BABYLON.SceneLoader.ImportMeshAsync` call (around line 106).
+    - Update the third argument with your new filename.
+4.  **Adjust Scaling (Optional)**: If your model is too large or small, adjust the scaling factor in `main.js` (around line 116):
+    ```javascript
+    root.scaling.scaleInPlace(0.06); // Change 0.06 to your desired scale
+    ```
+
+---
+
 ## 🏗️ Architecture
 
 ### Core Modules
 
-- **`main.js`**: Entry point, scene setup, and event handling.
-- **`robot.js`**: Robot class, animation, and physics.
-- **`brain.js`**: AI logic, pathfinding, and environment mapping.
-- **`scene.js`**: 3D environment creation and asset management.
+- **`main.js`**: Central entry point. Handles scene initialization, asset loading, robot creation, and UI event listeners.
+- **`brain.js`**: The intelligence center. Manages environment mapping, pathfinding (A*), and persists learned state.
+- **`style.css`**: Premium glassmorphism UI styles and layout.
+- **`trained_models/`**: Stores learned neural maps in JSON format.
 
 ### AI & Machine Learning
 
 ![Robot Training Progress](files/training.gif)
+![3D Training Visualizer](files/training_3d_model.png)
 
-The `brain.js` module uses:
+The `brain.js` module implements:
 
-- **A* Algorithm**: For pathfinding between waypoints.
-- **Neural SLAM (Simplified)**: Inspired by [Cognitive Mapper and Planner](https://arxiv.org/abs/1706.09520) (Gupta et al., 2017), this project uses a hybrid approach. It maintains a spatial memory (Grid Map) that is updated as the agent explores, coupled with a neural world model that learns to predict the traversability of unseen nodes.
-- **TensorFlow.js**: Used for the "World Model" neural network, learning to map (x, z) coordinates to reachability scores.
-- **Grid-Based Mapping**: The environment is discretized for efficient path planning and memory management.
-
-
-
+- **A* Algorithm**: For efficient pathfinding between known traversable points.
+- **Spatial Mapping**: A grid-based system that records where the robot has successfully moved.
+- **World Persistence**: One-click saving and loading of learned "Mental Maps".
+- **Real-time Visualizer**: A 2D overlay showing the robot's current understanding of the floor plan (Green = traversable, Red = obstacles).
 
 ## 🛠️ Development
 
-### Adding New Assets
+### Project Structure
 
-To add new 3D models:
+- **`/3d_model_files`**: Put your GLB/GLTF environment files here.
+- **`/files`**: Project documentation assets (images, gifs).
+- **`/trained_models`**: Local storage for your saved brain maps.
 
-1.  Place your `.glb` or `.gltf` files in the `public/assets/` directory.
-2.  Update the `loadAssets` function in `scene.js` to register the new model.
-3.  Use the `createMesh` helper to instantiate the model in the scene.
+### Managing Brains
 
-### Extending the Brain
+This project uses a custom Vite middleware to list and save models locally:
 
-To improve the AI:
+- **Saving**: Click "Stop & Save" or "Save Current Learned Map" to write the current brain state to a JSON file in `trained_models/`.
+- **Loading**: Use "Load Brain" to open a modal and select a previously saved map.
+- **Unloading**: Use "Unload Brain" to start fresh or prepare for a new load.
 
-1.  Modify `brain.js` to add more sophisticated learning algorithms.
-2.  Update `scene.js` to provide richer sensor data (e.g., distance to obstacles).
-3.  Enhance the pathfinding algorithm with heuristics for better performance.
+---
+
+### Tips for Better Mapping
+
+- **Manual Start**: Use the arrow keys to guide the robot into open areas before starting "Explore & Map".
+- **Custom Destinations**: Click the brain icon or the "Set Custom Destination" button, then click anywhere on the 3D floor to command the robot to go there (only works for learned areas).
+- **Shift + I**: Toggle the BabylonJS Inspector (Shift+I) while in the app for advanced debugging and ruler tools.
