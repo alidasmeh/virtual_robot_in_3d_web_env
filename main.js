@@ -34,7 +34,7 @@ const createScene = (canvas) => {
     loadBrain();
 
     // Camera
-    const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 25, new BABYLON.Vector3(8.5, 0, 0), scene);
+    const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 1.1, Math.PI / 4.0, 50, new BABYLON.Vector3(8.5, 0, 0), scene);
     camera.attachControl(canvas, true);
     camera.inputs.removeByType("ArcRotateCameraKeyboardMoveInput");
     camera.lowerRadiusLimit = 5;
@@ -115,19 +115,117 @@ const createScene = (canvas) => {
     bed.position = new BABYLON.Vector3(ROOM2_X + 3.5, 0.3, 4);
     bed.checkCollisions = true;
 
+    // Robot & Control State
+    let brainMode = 'manual';
+    let currentTarget = null;
+
     // Robot
-    const robot = BABYLON.MeshBuilder.CreateBox("robot", { size: 0.6 }, scene);
-    robot.position = new BABYLON.Vector3(0, 0.4, 4);
+    const faceColors = new Array(6).fill(new BABYLON.Color4(1, 0.9, 0, 1)); // Bright Yellow (RGBA)
+    faceColors[0] = new BABYLON.Color4(0.0, 0.0, 255, 0.30); // Front Face Blue (RGBA)
+
+    const robot = BABYLON.MeshBuilder.CreateBox("robot", { 
+        width: 0.5, height: 0.7, depth: 0.4, 
+        faceColors: faceColors 
+    }, scene);
+    robot.position = new BABYLON.Vector3(0, 0.35, 4);
     robot.checkCollisions = true;
-    robot.ellipsoid = new BABYLON.Vector3(0.35, 0.35, 0.35);
+    robot.ellipsoid = new BABYLON.Vector3(0.3, 0.35, 0.3);
     robot.currentPath = null;
+
+    // Body Material
+    const robotMat = new BABYLON.StandardMaterial("robotMat", scene);
+    robotMat.useVertexColors = true;
+    robotMat.diffuseColor = new BABYLON.Color3(1, 1, 1); // Preserve vertex colors
+    robotMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+    robot.material = robotMat;
+
+    // Face Screen
+    const faceScreen = BABYLON.MeshBuilder.CreatePlane("faceScreen", { width: 0.4, height: 0.3 }, scene);
+    faceScreen.parent = robot;
+    faceScreen.position.z = 0.201; // Offset to avoid z-fighting
+    faceScreen.position.y = 0.15;
+    
+    // Dynamic Texture for Face
+    const faceTexture = new BABYLON.DynamicTexture("faceTexture", { width: 256, height: 256 }, scene);
+    const faceContext = faceTexture.getContext();
+    const faceMat = new BABYLON.StandardMaterial("faceMat", scene);
+    faceMat.diffuseTexture = faceTexture;
+    faceMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+    faceScreen.material = faceMat;
+
+    const drawFace = (expression = 'happy', blink = false) => {
+        faceContext.clearRect(0, 0, 256, 256);
+        faceContext.fillStyle = "#294dc7ff"; // Dark screen background
+        faceContext.fillRect(0, 0, 256, 256);
+        
+        faceContext.fillStyle = "#00ffcc"; // Cyberglow cyan
+        faceContext.strokeStyle = "#00ffcc";
+        faceContext.lineWidth = 12;
+        faceContext.lineCap = "round";
+
+        if (blink) {
+            // Blinking eyes (horizontal lines)
+            faceContext.beginPath();
+            faceContext.moveTo(60, 100); faceContext.lineTo(100, 100);
+            faceContext.moveTo(156, 100); faceContext.lineTo(196, 100);
+            faceContext.stroke();
+        } else {
+            // Round eyes
+            faceContext.beginPath();
+            faceContext.arc(80, 100, 20, 0, Math.PI * 2);
+            faceContext.arc(176, 100, 20, 0, Math.PI * 2);
+            faceContext.fill();
+        }
+
+        // Mouth
+        faceContext.beginPath();
+        if (expression === 'happy') {
+            faceContext.arc(128, 150, 45, 0.15 * Math.PI, 0.85 * Math.PI);
+        } else if (expression === 'thinking') {
+            faceContext.moveTo(90, 180);
+            faceContext.lineTo(166, 180);
+        } else {
+            faceContext.moveTo(100, 180);
+            faceContext.lineTo(156, 180);
+        }
+        faceContext.stroke();
+        faceTexture.update();
+    };
+
+    // Antenna
+    const yellowMat = new BABYLON.StandardMaterial("yellowMat", scene);
+    yellowMat.diffuseColor = new BABYLON.Color3(1, 0.9, 0);
+
+    const antennaBase = BABYLON.MeshBuilder.CreateCylinder("antennaBase", { diameter: 0.05, height: 0.2 }, scene);
+    antennaBase.parent = robot;
+    antennaBase.position.y = 0.45;
+    antennaBase.material = yellowMat;
+
+    const antennaTip = BABYLON.MeshBuilder.CreateSphere("antennaTip", { diameter: 0.08 }, scene);
+    antennaTip.parent = antennaBase;
+    antennaTip.position.y = 0.1;
+    const tipMat = new BABYLON.StandardMaterial("tipMat", scene);
+    tipMat.emissiveColor = new BABYLON.Color3(0, 1, 0.8);
+    antennaTip.material = tipMat;
+
+    // Face Animation State
+    let faceTimer = 0;
+    scene.onBeforeRenderObservable.add(() => {
+        faceTimer++;
+        const isBlinking = (faceTimer % 180 > 170); // Blink every 3s
+        const currentExp = (brainMode === 'mapping' || brainMode === 'auto-nav') ? 'thinking' : 'happy';
+        drawFace(currentExp, isBlinking);
+        
+        // Pulse antenna tip
+        tipMat.emissiveColor.g = 0.5 + Math.sin(faceTimer * 0.1) * 0.5;
+        tipMat.emissiveColor.b = 0.5 + Math.sin(faceTimer * 0.1) * 0.5;
+    });
 
     // UI
     const posDisplay = document.getElementById("robot-pos");
     const brainIndicator = document.getElementById("brain-indicator");
     const stopBtn = document.getElementById("btn-stop-learning");
-    let brainMode = 'manual';
-    let currentTarget = null;
+
 
     // Map Visualization
     const mapPoints = [];
